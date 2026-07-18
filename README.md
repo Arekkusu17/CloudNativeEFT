@@ -9,7 +9,7 @@ La solucion usa un BFF para orquestar operaciones del frontend, RabbitMQ para pr
 - API REST para gestion de cursos, inscripciones, examenes y calificaciones.
 - Microservicio BFF con endpoints para producir y consumir mensajes desde RabbitMQ.
 - Seguridad stateless con Spring Security OAuth2 Resource Server.
-- Autorizacion por roles desde claims de Azure AD B2C.
+- Autorizacion RBAC por roles `ADMIN`, `INSTRUCTOR` y `ESTUDIANTE` desde claims de Azure AD B2C.
 - Cola principal `cola.evaluaciones.pendientes` para evaluaciones rendidas.
 - Cola de errores `cola.evaluaciones.errores` mediante dead-letter exchange.
 - Persistencia local con H2 en modo archivo.
@@ -97,6 +97,49 @@ Variables principales:
 | `RABBITMQ_QUEUE_EVALUACIONES_ERRORES` | Cola de errores de evaluaciones. |
 
 > No subas `.env` ni credenciales reales al repositorio.
+
+## Seguridad y RBAC
+
+La API valida JWT emitidos por Azure AD B2C y lee los permisos desde el claim personalizado `extension_Role`. Spring agrega automaticamente el prefijo `ROLE_`, por lo que un token como este:
+
+```json
+{
+  "extension_Role": "INSTRUCTOR"
+}
+```
+
+se interpreta internamente como `ROLE_INSTRUCTOR`.
+
+Tambien se acepta el claim como lista:
+
+```json
+{
+  "extension_Role": ["INSTRUCTOR"]
+}
+```
+
+Roles usados por la aplicacion:
+
+| Rol | Responsabilidad |
+| --- | --- |
+| `ADMIN` | Acceso completo a operaciones administrativas, cursos, examenes y colas. |
+| `INSTRUCTOR` | Gestiona cursos, materiales, examenes, calificaciones y procesamiento de colas. |
+| `ESTUDIANTE` | Consulta cursos, descarga contenidos, se inscribe y rinde examenes. |
+
+Matriz principal de permisos:
+
+| Metodo | Endpoint | Roles |
+| --- | --- | --- |
+| `GET` | `/api/cursos/**` | `ADMIN`, `INSTRUCTOR`, `ESTUDIANTE` |
+| `POST` | `/api/cursos` | `ADMIN`, `INSTRUCTOR` |
+| `PUT` | `/api/cursos/**` | `ADMIN`, `INSTRUCTOR` |
+| `POST` | `/api/cursos/*/contenidos/**` | `ADMIN`, `INSTRUCTOR` |
+| `POST` | `/api/inscripciones` | `ADMIN`, `ESTUDIANTE` |
+| `GET` | `/api/inscripciones/**` | `ADMIN`, `INSTRUCTOR` |
+| `POST` | `/api/examenes` | `ADMIN`, `INSTRUCTOR` |
+| `GET` | `/api/examenes/**` | `ADMIN`, `INSTRUCTOR`, `ESTUDIANTE` |
+| `POST` | `/api/bff/examenes/*/rendir` | `ADMIN`, `ESTUDIANTE` |
+| `POST` | `/api/bff/colas/**` | `ADMIN`, `INSTRUCTOR` |
 
 ## Ejecutar con Docker Compose
 

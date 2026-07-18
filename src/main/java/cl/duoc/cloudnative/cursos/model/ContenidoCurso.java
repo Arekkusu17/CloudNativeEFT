@@ -24,16 +24,16 @@ public class ContenidoCurso {
     @Column(nullable = false, length = 120)
     private String titulo;
 
-    @Column(nullable = false, length = 180)
+    @Column(name = "nombre_archivo", nullable = false, length = 180)
     private String nombreArchivo;
 
-    @Column(nullable = false, length = 120)
+    @Column(name = "content_type", nullable = false, length = 120)
     private String contentType;
 
-    @Column(nullable = false, length = 260)
+    @Column(name = "s3_key", nullable = false, length = 260)
     private String s3Key;
 
-    @Column(nullable = false)
+    @Column(name = "fecha_carga", nullable = false)
     private LocalDateTime fechaCarga;
 
     protected ContenidoCurso() {
