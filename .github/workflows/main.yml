@@ -6,6 +6,12 @@ on:
       - main
   workflow_dispatch:
 
+env:
+  APP_NAME: gestion-cursos-online
+  RABBITMQ_NAME: cursos-rabbitmq
+  DOCKER_NETWORK: cursos-network
+  IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/gestion-cursos-online
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -25,7 +31,7 @@ jobs:
         run: mvn -B test
 
       - name: Build image
-        run: docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/gestion-cursos-online:latest .
+        run: docker build -t $IMAGE_NAME:latest .
 
       - name: Login DockerHub
         if: github.ref == 'refs/heads/main'
@@ -36,19 +42,97 @@ jobs:
 
       - name: Push DockerHub
         if: github.ref == 'refs/heads/main'
-        run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/gestion-cursos-online:latest
+        run: docker push $IMAGE_NAME:latest
+
+      - name: Add SSH Key
+        if: github.ref == 'refs/heads/main'
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
 
       - name: Deploy EC2
         if: github.ref == 'refs/heads/main'
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
-            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/gestion-cursos-online:latest
-            docker stop gestion-cursos-online || true
-            docker rm gestion-cursos-online || true
-            docker run -d --name gestion-cursos-online -p 8080:8080 \
-              --env-file /home/${{ secrets.EC2_USER }}/gestion-cursos-online/.env \
-              ${{ secrets.DOCKERHUB_USERNAME }}/gestion-cursos-online:latest
+        run: |
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${{ secrets.USER_SERVER }}@${{ secrets.EC2_HOST }} << EOF
+            set -e
+
+            RABBITMQ_USERNAME="${{ secrets.SPRING_RABBITMQ_USERNAME }}"
+            RABBITMQ_PASSWORD="${{ secrets.SPRING_RABBITMQ_PASSWORD }}"
+            RABBITMQ_USERNAME="\${RABBITMQ_USERNAME:-guest}"
+            RABBITMQ_PASSWORD="\${RABBITMQ_PASSWORD:-guest}"
+
+            echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+
+            docker pull $IMAGE_NAME:latest
+
+            docker network create $DOCKER_NETWORK || true
+
+            docker stop $APP_NAME || true
+            docker rm $APP_NAME || true
+
+            docker stop $RABBITMQ_NAME || true
+            docker rm $RABBITMQ_NAME || true
+
+            mkdir -p ~/gestion-cursos-online-data
+
+            docker run -d \
+              --name $RABBITMQ_NAME \
+              --restart unless-stopped \
+              --network $DOCKER_NETWORK \
+              --network-alias rabbitmq \
+              -p 5672:5672 \
+              -p 15672:15672 \
+              -e RABBITMQ_DEFAULT_USER="\$RABBITMQ_USERNAME" \
+              -e RABBITMQ_DEFAULT_PASS="\$RABBITMQ_PASSWORD" \
+              -v cursos-rabbitmq-data:/var/lib/rabbitmq \
+              rabbitmq:3.13-management
+
+            echo "Esperando RabbitMQ..."
+            for attempt in {1..30}; do
+              if docker exec $RABBITMQ_NAME rabbitmq-diagnostics -q ping >/dev/null 2>&1; then
+                echo "RabbitMQ disponible."
+                break
+              fi
+              if [ "\$attempt" -eq 30 ]; then
+                echo "RabbitMQ no estuvo disponible a tiempo."
+                docker logs $RABBITMQ_NAME
+                exit 1
+              fi
+              sleep 5
+            done
+
+            docker run -d \
+              --name $APP_NAME \
+              --restart unless-stopped \
+              --network $DOCKER_NETWORK \
+              -p 8080:8080 \
+              -e AZURE_AD_B2C_ISSUER_URI="${{ secrets.AZURE_AD_B2C_ISSUER_URI }}" \
+              -e AZURE_AD_B2C_JWK_SET_URI="${{ secrets.AZURE_AD_B2C_JWK_SET_URI }}" \
+              -e AWS_REGION="${{ secrets.AWS_REGION }}" \
+              -e AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}" \
+              -e AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}" \
+              -e AWS_SESSION_TOKEN="${{ secrets.AWS_SESSION_TOKEN }}" \
+              -e S3_BUCKET="${{ secrets.S3_BUCKET }}" \
+              -e SPRING_DATASOURCE_URL="jdbc:h2:file:./data/cursos-online-db" \
+              -e SPRING_DATASOURCE_USERNAME="sa" \
+              -e SPRING_DATASOURCE_PASSWORD="" \
+              -e SPRING_RABBITMQ_HOST="rabbitmq" \
+              -e SPRING_RABBITMQ_PORT="5672" \
+              -e SPRING_RABBITMQ_USERNAME="\$RABBITMQ_USERNAME" \
+              -e SPRING_RABBITMQ_PASSWORD="\$RABBITMQ_PASSWORD" \
+              -e RABBITMQ_EXCHANGE_EVALUACIONES="exchange.evaluaciones" \
+              -e RABBITMQ_EXCHANGE_ERRORES="exchange.evaluaciones.errores" \
+              -e RABBITMQ_QUEUE_EVALUACIONES="cola.evaluaciones.pendientes" \
+              -e RABBITMQ_QUEUE_EVALUACIONES_ERRORES="cola.evaluaciones.errores" \
+              -e RABBITMQ_ROUTING_EVALUACION_RENDIDA="evaluacion.rendida" \
+              -e RABBITMQ_ROUTING_EVALUACION_ERROR="evaluacion.error" \
+              -v ~/gestion-cursos-online-data:/app/data \
+              $IMAGE_NAME:latest
+
+            echo "Verificando contenedores..."
+            docker ps --filter "name=$APP_NAME"
+            docker ps --filter "name=$RABBITMQ_NAME"
+
+            docker image prune -f
+          EOF
