@@ -61,6 +61,8 @@ jobs:
             RABBITMQ_PASSWORD="${{ secrets.SPRING_RABBITMQ_PASSWORD }}"
             RABBITMQ_USERNAME="\${RABBITMQ_USERNAME:-guest}"
             RABBITMQ_PASSWORD="\${RABBITMQ_PASSWORD:-guest}"
+            AWS_REGION_VALUE="${{ secrets.AWS_REGION }}"
+            AWS_REGION_VALUE="\${AWS_REGION_VALUE:-us-east-1}"
 
             echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
 
@@ -109,7 +111,7 @@ jobs:
               -p 8080:8080 \
               -e AZURE_AD_B2C_ISSUER_URI="${{ secrets.AZURE_AD_B2C_ISSUER_URI }}" \
               -e AZURE_AD_B2C_JWK_SET_URI="${{ secrets.AZURE_AD_B2C_JWK_SET_URI }}" \
-              -e AWS_REGION="${{ secrets.AWS_REGION }}" \
+              -e AWS_REGION="\$AWS_REGION_VALUE" \
               -e AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}" \
               -e AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}" \
               -e AWS_SESSION_TOKEN="${{ secrets.AWS_SESSION_TOKEN }}" \
