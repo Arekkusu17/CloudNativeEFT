@@ -61,7 +61,7 @@ public class CursoService {
     }
 
     @Transactional
-    public ContenidoResponse generarMaterialDemo(UUID cursoId) {
+    public ContenidoResponse generarMaterial(UUID cursoId) {
         Curso curso = obtenerCurso(cursoId);
         UUID contenidoId = UUID.randomUUID();
         String nombreArchivo = "material-" + cursoId + ".txt";
@@ -75,7 +75,7 @@ public class CursoService {
         ContenidoCurso contenido = new ContenidoCurso(
                 contenidoId,
                 curso,
-                "Material introductorio",
+                "Material de apoyo",
                 nombreArchivo,
                 "text/plain",
                 key,

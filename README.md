@@ -4,6 +4,18 @@ Microservicio Spring Boot para la Evaluacion Final Transversal de Desarrollo Clo
 
 La solucion usa un BFF para orquestar operaciones de la API, RabbitMQ para procesar evaluaciones de forma asincrona, Amazon S3 para almacenar contenido de cursos, JWT emitidos por Azure AD B2C como Identity as a Service, y esta preparada para exponerse mediante AWS API Gateway.
 
+## Arquitectura de la solución
+
+El diagrama de la solución es
+
+![Diagrama de Arquitectura](docs/img/Diagrama_CloudNative.png)
+
+## Base de Datos
+
+La estructura se crea desde `src/main/resources/schema.sql`.
+
+![Modelo de base de datos](docs/img/db_diagram.png)
+
 ## Caracteristicas
 
 - API REST para gestion de cursos, inscripciones, examenes y calificaciones.
@@ -14,7 +26,7 @@ La solucion usa un BFF para orquestar operaciones de la API, RabbitMQ para proce
 - Cola de errores `cola.evaluaciones.errores` mediante dead-letter exchange.
 - Persistencia local con H2 en modo archivo.
 - Tabla `evaluaciones_procesadas` para registrar mensajes consumidos.
-- Carga y descarga de material demo desde Amazon S3.
+- Carga y descarga de material de curso desde Amazon S3.
 - Actuator para health checks.
 - Dockerfile multi-stage con Java 21.
 - Docker Compose para aplicacion y RabbitMQ Management.
@@ -133,7 +145,7 @@ Matriz principal de permisos:
 | `GET` | `/api/cursos/**` | `ADMIN`, `INSTRUCTOR`, `ESTUDIANTE` |
 | `POST` | `/api/cursos` | `ADMIN`, `INSTRUCTOR` |
 | `PUT` | `/api/cursos/**` | `ADMIN`, `INSTRUCTOR` |
-| `POST` | `/api/cursos/*/contenidos/**` | `ADMIN`, `INSTRUCTOR` |
+| `POST` | `/api/cursos/*/contenidos` | `ADMIN`, `INSTRUCTOR` |
 | `POST` | `/api/inscripciones` | `ADMIN`, `ESTUDIANTE` |
 | `GET` | `/api/inscripciones/**` | `ADMIN`, `INSTRUCTOR` |
 | `POST` | `/api/examenes` | `ADMIN`, `INSTRUCTOR` |
@@ -230,7 +242,7 @@ Componentes principales:
 | `POST` | `/api/cursos` | Crear curso. |
 | `GET` | `/api/cursos` | Listar cursos. |
 | `PUT` | `/api/cursos/{id}` | Actualizar curso. |
-| `POST` | `/api/cursos/{id}/contenidos/demo` | Generar material demo y subirlo a S3. |
+| `POST` | `/api/cursos/{id}/contenidos` | Generar material de curso y subirlo a S3. |
 | `GET` | `/api/cursos/{id}/contenidos` | Listar contenidos de un curso. |
 | `GET` | `/api/cursos/contenidos/{contenidoId}/descargar` | Descargar material desde S3. |
 | `POST` | `/api/inscripciones` | Inscribir estudiante. |

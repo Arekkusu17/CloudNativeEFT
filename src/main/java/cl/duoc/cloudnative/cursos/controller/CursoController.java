@@ -51,9 +51,9 @@ public class CursoController {
         return ResponseEntity.ok(service.actualizarCurso(id, request));
     }
 
-    @PostMapping("/{id}/contenidos/demo")
-    public ResponseEntity<ContenidoResponse> generarMaterialDemo(@PathVariable UUID id) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(service.generarMaterialDemo(id));
+    @PostMapping("/{id}/contenidos")
+    public ResponseEntity<ContenidoResponse> generarMaterial(@PathVariable UUID id) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(service.generarMaterial(id));
     }
 
     @GetMapping("/{id}/contenidos")
