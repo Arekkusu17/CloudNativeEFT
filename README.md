@@ -2,7 +2,7 @@
 
 Microservicio Spring Boot para la Evaluacion Final Transversal de Desarrollo Cloud Native. La aplicacion implementa una plataforma de cursos en linea donde estudiantes pueden inscribirse, acceder a material almacenado en la nube y rendir examenes; los instructores pueden administrar cursos, examenes y calificaciones.
 
-La solucion usa un BFF para orquestar operaciones del frontend, RabbitMQ para procesar evaluaciones de forma asincrona, Amazon S3 para almacenar contenido de cursos, JWT emitidos por Azure AD B2C como Identity as a Service, y esta preparada para exponerse mediante AWS API Gateway.
+La solucion usa un BFF para orquestar operaciones de la API, RabbitMQ para procesar evaluaciones de forma asincrona, Amazon S3 para almacenar contenido de cursos, JWT emitidos por Azure AD B2C como Identity as a Service, y esta preparada para exponerse mediante AWS API Gateway.
 
 ## Caracteristicas
 
@@ -219,7 +219,7 @@ Componentes principales:
 | `RabbitMQConfig` | Declara exchanges, colas, bindings, `RabbitTemplate` y conversor JSON. |
 | `EvaluacionProducer` | Publica evaluaciones rendidas y errores. |
 | `EvaluacionQueueService` | Consume mensajes pendientes y registra evaluaciones procesadas. |
-| `BffController` | Orquesta endpoints usados por el frontend para producir y consumir mensajes. |
+| `BffController` | Orquesta endpoints de la API para producir y consumir mensajes. |
 | `CursoService` | Gestiona cursos y material almacenado en S3. |
 | `S3StorageService` | Sube, descarga y elimina archivos en Amazon S3. |
 
